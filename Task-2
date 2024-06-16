@@ -1,0 +1,108 @@
+1: Set Up Your EnvironmentEnsure you have Python installed, and then install the necessary libraries:
+pip install numpy pandas librosa scikit-learn keras tensorflow matplotlib
+
+2: Collect and Preprocess the DataWe will use the RAVDESS (Ryerson Audio-Visual Database of Emotional Speech and Song) dataset, which contains audio files labeled with different emotions.Download the RAVDESS DatasetYou can download the dataset from RAVDESS Dataset.Load and Preprocess the Data
+
+import os
+import librosa
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from keras.utils import to_categorical
+
+# Function to extract features from audio files
+def extract_features(file_name):
+    audio, sample_rate = librosa.load(file_name, res_type='kaiser_fast')
+    mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=40)
+    mfccs_scaled = np.mean(mfccs.T, axis=0)
+    return mfccs_scaled
+
+# Load the dataset
+def load_data(data_dir):
+    emotions = []
+    features = []
+    
+    for file in os.listdir(data_dir):
+        if file.endswith(".wav"):
+            file_path = os.path.join(data_dir, file)
+            emotion = file.split('-')[2]  # Extract emotion from file name
+            features.append(extract_features(file_path))
+            emotions.append(emotion)
+    
+    return np.array(features), np.array(emotions)
+
+data_dir = 'path_to_ravdess_dataset'
+X, y = load_data(data_dir)
+
+# Encode the target labels
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
+y_categorical = to_categorical(y_encoded)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_categorical, test_size=0.2, random_state=42)
+
+3: Design and Train the ModelWe'll use a Convolutional Neural Network (CNN) for this task.
+
+from keras.models import Sequential
+from keras.layers import Dense, Conv1D, Flatten, Dropout, MaxPooling1D
+from keras.optimizers import Adam
+
+# Define the model architecture
+model = Sequential()
+model.add(Conv1D(64, 5, activation='relu', input_shape=(X_train.shape[1], 1)))
+model.add(MaxPooling1D(pool_size=2))
+model.add(Dropout(0.2))
+model.add(Conv1D(128, 5, activation='relu'))
+model.add(MaxPooling1D(pool_size=2))
+model.add(Dropout(0.2))
+model.add(Conv1D(256, 5, activation='relu'))
+model.add(MaxPooling1D(pool_size=2))
+model.add(Dropout(0.2))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(y_categorical.shape[1], activation='softmax'))
+
+# Compile the model
+model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Reshape the input data
+X_train_reshaped = X_train[..., np.newaxis]
+X_test_reshaped = X_test[..., np.newaxis]
+
+# Train the model
+history = model.fit(X_train_reshaped, y_train, validation_data=(X_test_reshaped, y_test), epochs=50, batch_size=32)
+
+4: Evaluate the ModelAssess the model's performance on the test set.
+
+# Evaluate the model
+test_loss, test_acc = model.evaluate(X_test_reshaped, y_test)
+print(f'Test accuracy: {test_acc:.3f}')
+
+# Plot training & validation accuracy values
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+# Plot training & validation loss values
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+5: Save the ModelSave the trained model for future use.
+
+model.save('emotion_recognition_model.h5')
