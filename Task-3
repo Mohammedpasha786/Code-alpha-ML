@@ -1,0 +1,112 @@
+1: Set Up Your EnvironmentEnsure you have Python installed, and then install the necessary libraries:
+
+pip install numpy pandas matplotlib scikit-learn keras tensorflow
+
+2: Load and Preprocess the DataWe will use the EMNIST dataset, which is available in the tensorflow library.
+
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.datasets import mnist
+from sklearn.model_selection import train_test_split
+from tensorflow.keras import layers, models
+import tensorflow as tf
+
+# Load the EMNIST dataset
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+# Reshape the data to fit the model
+X_train = X_train.reshape(X_train.shape[0], 28, 28, 1)
+X_test = X_test.reshape(X_test.shape[0], 28, 28, 1)
+
+# Normalize the data
+X_train = X_train.astype('float32') / 255
+X_test = X_test.astype('float32') / 255
+
+# One-hot encode the labels
+y_train = to_categorical(y_train, 10)
+y_test = to_categorical(y_test, 10)
+
+3: Design and Train the ModelWe'll use a Convolutional Neural Network (CNN) for this task.
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+# Define the model architecture
+model = Sequential()
+
+# First convolutional layer
+model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+
+# Second convolutional layer
+model.add(Conv2D(64, kernel_size=(3, 3), activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+
+# Fully connected layer
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.5))
+
+# Output layer
+model.add(Dense(10, activation='softmax'))
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+history = model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=10, batch_size=200, verbose=2)
+
+4: Evaluate the ModelAssess the model's performance on the test set.
+
+# Evaluate the model
+test_loss, test_acc = model.evaluate(X_test, y_test)
+print(f'Test accuracy: {test_acc:.3f}')
+
+# Plot training & validation accuracy values
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+# Plot training & validation loss values
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+5: Save the ModelSave the trained model for future use.
+
+model.save('handwritten_character_recognition_model.h5')
+
+6: Load and Use the ModelLoad the model to make predictions on new data.
+
+from tensorflow.keras.models import load_model
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load the model
+model = load_model('handwritten_character_recognition_model.h5')
+
+# Example new data (replace with actual new data)
+new_data = X_test[0].reshape(1, 28, 28, 1)  # Example from test set
+
+# Make a prediction
+prediction = model.predict(new_data)
+predicted_class = np.argmax(prediction, axis=1)
+print("Predicted class:", predicted_class[0])
+
+# Display the input image
+plt.imshow(new_data.reshape(28, 28), cmap='gray')
+plt.title(f'Predicted Class: {predicted_class[0]}')
+plt.show()
